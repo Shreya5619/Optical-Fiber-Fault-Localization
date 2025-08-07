@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OTDR Fault Detector</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 500px; margin: auto; }
+        .result { margin-top: 20px; font-size: 1.2em; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>OTDR Fault Detector</h2>
+        <form method="post" enctype="multipart/form-data">
+            <label for="file">Upload CSV file (SNR, P1-P30):</label><br><br>
+            <input type="file" name="file" id="file" accept=".csv" required><br><br>
+            <button type="submit">Predict</button>
+        </form>
+        {% if prediction is not none %}
+            <div class="result">
+                <strong>Predicted Class:</strong> {{ prediction }}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html> 
