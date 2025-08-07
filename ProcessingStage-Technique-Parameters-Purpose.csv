@@ -1,0 +1,4 @@
+"Processing Stage","Technique","Parameters","Purpose"
+"Denoising","Savitzky-Golay Filter","Window=11, Order=3","Remove noise without smoothing edges"
+"Normalization","Min-Max Scaling","education.research_methodology","Standardize input amplitudes"
+"Segmentation","Sliding Window","Size=200, Stride=100","Create model-ready sequences"
