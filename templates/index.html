@@ -2,57 +2,147 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OTDR Fiber Fault Detection & Localization</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
-    <h1 class="main-header">🔍 OTDR-Based Fiber Fault Detection & Localization</h1>
-    <div class="container">
-        <div class="input-section">
-            <h2>📤 OTDR Data Input</h2>
-            <form action="/" method="post" enctype="multipart/form-data">
-                <button type="submit">Run Analysis</button>
-            </form>
+
+<h1 class="main-header">🔍 OTDR-Based Fiber Fault Detection & Localization</h1>
+
+<div class="container">
+    <div class="input-section">
+        <h2>📤 OTDR Data Input</h2>
+        <form action="/" method="post">
+            <div class="form-group">
+                <label for="snr">SNR:</label>
+                <input type="number" id="snr" name="snr" step="0.1" value="{{ snr }}">
+            </div>
+            <h3>OTDR Trace Points (P1-P30)</h3>
+            <div class="trace-points-grid">
+                {% for i in range(1, 31) %}
+                <div class="form-group">
+                    <label for="p{{ i }}">P{{ i }}:</label>
+                    <input type="number" id="p{{ i }}" name="p{{ i }}" step="0.01" value="{{ otdr_trace[i-1] }}">
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn">Run Analysis</button>
+        </form>
+    </div>
+
+    {% if otdr_trace %}
+    <div class="results-section">
+        <h2>📊 OTDR Trace Visualization</h2>
+        <div id="otdr-plot" class="plot-container"></div>
+    </div>
+
+    <script>
+        var trace = {
+            x: Array.from({length: 30}, (_, i) => i + 1),
+            y: {{ otdr_trace | tojson }},
+            mode: 'lines+markers',
+            name: 'OTDR Trace',
+            line: {color: 'blue', width: 2},
+            marker: {size: 4}
+        };
+
+        var layout = {
+            title: "OTDR Trace (P1-P30)",
+            xaxis: {title: "Position Index"},
+            yaxis: {title: "Normalized Power"},
+            height: 300,
+            paper_bgcolor: '#1e1e1e',
+            plot_bgcolor: '#1e1e1e',
+            font: {color: '#ffffff'},
+            legend: {font: {color: '#ffffff'}}
+        };
+
+        Plotly.newPlot('otdr-plot', [trace], layout, {responsive: true});
+    </script>
+    {% endif %}
+
+    {% if binary_prediction %}
+    <div class="results-section">
+        <h2>🔄 ML Processing Pipeline</h2>
+        <div class="step-container">
+            <h3>Step 1: Binary Fault Detection</h3>
+            {% if binary_prediction['prediction'] %}
+            <div class="error-box">🚨 <strong>FAULT DETECTED</strong><br>Confidence: {{ "%.3f"|format(binary_prediction['confidence']) }}</div>
+            {% else %}
+            <div class="success-box">✅ <strong>NO FAULT DETECTED</strong><br>Confidence: {{ "%.3f"|format(binary_prediction['confidence']) }}</div>
+            {% endif %}
         </div>
 
-        {% if data %}
-            <div class="results-section">
-                <h2>🔄 ML Processing Pipeline</h2>
-                <div class="step-container">
-                    <h3>Step 1: Binary Fault Detection</h3>
-                    {% if data.binary_prediction.prediction %}
-                        <div class="error-box">🚨 <strong>FAULT DETECTED</strong><br>Confidence: {{ "%.3f"|format(data.binary_prediction.confidence) }}</div>
-                    {% else %}
-                        <div class="success-box">✅ <strong>NO FAULT DETECTED</strong><br>Confidence: {{ "%.3f"|format(data.binary_prediction.confidence) }}</div>
-                    {% endif %}
+        {% if detailed_predictions %}
+        <div class="step-container">
+            <h3>Step 2: Detailed Analysis</h3>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <h4>Fault Class</h4>
+                    <p>{{ detailed_predictions['class']['value'] }}: {{ detailed_predictions['class']['name'] }}</p>
                 </div>
-                
-                {% if data.detailed_predictions %}
-                    <div class="step-container">
-                        <h3>Step 2: Detailed Analysis</h3>
-                        <div class="metrics">
-                            </div>
-                        <div id="otdr-plot"></div>
-                        <script>
-                            // Generate Plotly chart using JavaScript and data from Flask
-                            var trace = {
-                                x: [...Array(30).keys()].map(i => i + 1),
-                                y: {{ data.otdr_trace | tojson }},
-                                mode: 'lines+markers',
-                                name: 'OTDR Trace'
-                            };
-                            var layout = {
-                                title: 'OTDR Trace with Fault Localization',
-                                xaxis: {title: 'Position Index'},
-                                yaxis: {title: 'Normalized Power'}
-                            };
-                            Plotly.newPlot('otdr-plot', [trace], layout);
-                        </script>
-                    </div>
-                {% endif %}
+                <div class="metric">
+                    <h4>Position</h4>
+                    <p>{{ "%.3f"|format(detailed_predictions['position']['value']) }}</p>
+                    <span>~{{ "%.1f"|format(detailed_predictions['position']['distance_km']) }} km</span>
+                </div>
+                <div class="metric">
+                    <h4>Reflectance</h4>
+                    <p>{{ "%.3f"|format(detailed_predictions['reflectance']['value']) }}</p>
+                </div>
+                <div class="metric">
+                    <h4>Loss</h4>
+                    <p>{{ "%.3f"|format(detailed_predictions['loss']['value']) }}</p>
+                </div>
             </div>
+            
+            <div class="plot-container">
+                <h3>🎯 Fault Localization on OTDR Trace</h3>
+                <div id="localization-plot"></div>
+            </div>
+            <script>
+                var trace1 = {
+                    x: Array.from({length: 30}, (_, i) => i + 1),
+                    y: {{ otdr_trace | tojson }},
+                    mode: 'lines+markers',
+                    name: 'OTDR Trace',
+                    line: {color: 'blue', width: 2},
+                    marker: {size: 4}
+                };
+
+                var fault_index = Math.round({{ detailed_predictions['position']['value'] }} * 30);
+                var fault_y = {{ otdr_trace | tojson }}[fault_index-1];
+                var trace2 = {
+                    x: [fault_index],
+                    y: [fault_y],
+                    mode: 'markers',
+                    name: 'Predicted Fault Location',
+                    marker: {color: 'red', size: 15, symbol: 'diamond'}
+                };
+                
+                var layout2 = {
+                    title: "OTDR Trace with Fault Localization",
+                    xaxis: {title: "Position Index (P1-P30)"},
+                    yaxis: {title: "Normalized Power"},
+                    height: 400,
+                    paper_bgcolor: '#1e1e1e',
+                    plot_bgcolor: '#1e1e1e',
+                    font: {color: '#ffffff'},
+                    legend: {font: {color: '#ffffff'}}
+                };
+                Plotly.newPlot('localization-plot', [trace1, trace2], layout2, {responsive: true});
+            </script>
+        </div>
         {% endif %}
     </div>
+    {% endif %}
+</div>
+
+<footer>
+    <p>🔬 <strong>OTDR-Based Fiber Fault Detection System</strong> | Built with Flask for ML Model Integration</p>
+</footer>
+
 </body>
 </html>
